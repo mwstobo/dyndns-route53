@@ -71,6 +71,7 @@ func main() {
 	hostedZoneId := flag.String("hosted-zone-id", "", "hostedZoneID to use when creating route53 records")
 	host := flag.String("host", "", "name to associate to your home IP address")
 	ttl := flag.Int64("ttl", int64(300), "TTL for you DNS record")
+	flag.Parse()
 
 	ip, err := getCurrentIP()
 	if err != nil {
