@@ -39,7 +39,7 @@ func updateDNS(
 					Action: types.ChangeActionUpsert,
 					ResourceRecordSet: &types.ResourceRecordSet{
 						Name: &host,
-						Type: types.RRTypeCname,
+						Type: types.RRTypeA,
 						ResourceRecords: []types.ResourceRecord{
 							{
 								Value: &ip,
