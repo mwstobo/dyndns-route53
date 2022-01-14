@@ -17,8 +17,8 @@ import (
 
 var (
 	lastSuccessfulExecution = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "last_successfull_execution_timestamp",
-		Help: "Timestamp of last successfull execution of dyndns-route53",
+		Name: "last_successful_execution_timestamp_seconds",
+		Help: "Timestamp of last successful execution of dyndns-route53",
 	})
 )
 
