@@ -6,10 +6,20 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/route53"
 	"github.com/aws/aws-sdk-go-v2/service/route53/types"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/push"
+)
+
+var (
+	lastSuccessfulExecution = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "last_successfull_execution_timestamp",
+		Help: "Timestamp of last successfull execution of dyndns-route53",
+	})
 )
 
 func getCurrentIP() (string, error) {
@@ -71,7 +81,15 @@ func main() {
 	hostedZoneId := flag.String("hosted-zone-id", "", "hostedZoneID to use when creating route53 records")
 	host := flag.String("host", "", "name to associate to your home IP address")
 	ttl := flag.Int64("ttl", int64(300), "TTL for you DNS record")
+	pushGateway := flag.String("push-gateway", "http://localhost:9091", "URL for a Prometheus pushgateway")
 	flag.Parse()
+
+	push := push.
+		New(*pushGateway, "dyndns_route53").
+		Collector(lastSuccessfulExecution)
+	defer func() {
+		push.Push()
+	}()
 
 	ip, err := getCurrentIP()
 	if err != nil {
@@ -81,4 +99,6 @@ func main() {
 	if err := updateDNS(ctx, client, *hostedZoneId, ip, *host, *ttl); err != nil {
 		log.Fatal("error updating DNS: ", err)
 	}
+
+	lastSuccessfulExecution.Set(float64(time.Now().Unix()))
 }
