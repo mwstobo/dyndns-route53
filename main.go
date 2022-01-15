@@ -66,6 +66,8 @@ func updateDNS(
 	if err != nil {
 		return err
 	}
+
+	log.Println("Updated", host, "to", ip)
 	return nil
 }
 
