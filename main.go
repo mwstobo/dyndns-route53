@@ -5,11 +5,14 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/route53"
+
 	"github.com/aws/aws-sdk-go-v2/service/route53/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
@@ -34,7 +37,23 @@ func getCurrentIP() (string, error) {
 		return "", err
 	}
 
-	return string(body), nil
+	ip := string(body)
+	log.Print("Current IP is ", ip)
+	return strings.TrimSpace(ip), nil
+}
+
+func getCurrentIPForHost(host string) (string, error) {
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return "", err
+	}
+	if len(ips) == 0 {
+		return "", nil
+	}
+
+	ip := ips[0].String()
+	log.Print("Current IP for ", host, " is ", ip)
+	return strings.TrimSpace(ip), nil
 }
 
 func updateDNS(
@@ -62,12 +81,11 @@ func updateDNS(
 		},
 	}
 
-	_, err := client.ChangeResourceRecordSets(ctx, &input)
-	if err != nil {
+	if _, err := client.ChangeResourceRecordSets(ctx, &input); err != nil {
 		return err
 	}
 
-	log.Println("Updated", host, "to", ip)
+	log.Print("Updated ", host, " to ", ip)
 	return nil
 }
 
@@ -86,21 +104,24 @@ func main() {
 	pushGateway := flag.String("push-gateway", "http://localhost:9091", "URL for a Prometheus pushgateway")
 	flag.Parse()
 
-	push := push.
-		New(*pushGateway, "dyndns_route53").
-		Collector(lastSuccessfulExecution)
-	defer func() {
-		push.Push()
-	}()
+	push := push.New(*pushGateway, "dyndns_route53").Collector(lastSuccessfulExecution)
 
 	ip, err := getCurrentIP()
 	if err != nil {
 		log.Fatal("error getting current IP: ", err)
 	}
 
-	if err := updateDNS(ctx, client, *hostedZoneId, ip, *host, *ttl); err != nil {
-		log.Fatal("error updating DNS: ", err)
+	hostIp, err := getCurrentIPForHost(*host)
+	if err != nil {
+		log.Fatalf("error getting IP for %s: %v", *host, err)
+	}
+
+	if hostIp != ip {
+		if err := updateDNS(ctx, client, *hostedZoneId, ip, *host, *ttl); err != nil {
+			log.Fatal("error updating DNS: ", err)
+		}
 	}
 
 	lastSuccessfulExecution.Set(float64(time.Now().Unix()))
+	push.Push()
 }
