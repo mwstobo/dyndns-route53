@@ -109,11 +109,15 @@ func main() {
 	ip, err := getCurrentIP()
 	if err != nil {
 		log.Fatal("error getting current IP: ", err)
+	} else if strings.TrimSpace(ip) == "" {
+		log.Fatal("found blank current IP")
 	}
 
 	hostIp, err := getCurrentIPForHost(*host)
 	if err != nil {
 		log.Fatalf("error getting IP for %s: %v", *host, err)
+	} else if strings.TrimSpace(hostIp) == "" {
+		log.Fatalf("found blank IP for %s", *host)
 	}
 
 	if hostIp != ip {
